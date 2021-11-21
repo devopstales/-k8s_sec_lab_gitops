@@ -1,0 +1,106 @@
+nginx-ingressapiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: HelmRepository
+metadata:
+  name: ingress-nginx
+  namespace: ingress-system
+spec:
+  url: https://kubernetes.github.io/ingress-nginx
+  interval: 10m
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: ingress-nginx
+  namespace: ingress-system
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: ingress-nginx
+      sourceRef:
+        kind: HelmRepository
+        name: ingress-nginx
+        namespace: ingress-system
+      interval: 1m
+  values:
+    rbac:
+      create: true
+    podSecurityPolicy:
+      enabled: true
+    controller:
+      kind: DaemonSet
+      allowSnippetAnnotations: false
+      service:
+        externalTrafficPolicy: "Local"
+      watchIngressWithoutClass: true
+      ingressClassResource:
+        name: nginx
+        enabled: true
+        default: true
+        controllerValue: "k8s.io/ingress-nginx"
+      resources:
+        limits:
+          cpu: 200m
+          memory: 500Mi
+        requests:
+          cpu: 50m
+          memory: 300Mi
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      metrics:
+        port: 10254
+        enabled: true
+        service:
+          annotations:
+            prometheus.io/scrape: "true"
+            prometheus.io/port: "10254"
+#        serviceMonitor:
+#          enabled: true
+#          namespace: "ingress-system"
+#        prometheusRule:
+#          enabled: true
+#          additionalLabels: {}
+#          namespace: "cattle-monitoring-system"
+#          rules:
+#            - alert: NGINXConfigFailed
+#              expr: count(nginx_ingress_controller_config_last_reload_successful == 0) > 0
+#              for: 1s
+#              labels:
+#                severity: critical
+#              annotations:
+#                description: bad ingress config - nginx config test failed
+#                summary: uninstall the latest ingress changes to allow config reloads to resume
+#            - alert: NGINXCertificateExpiry
+#              expr: (avg(nginx_ingress_controller_ssl_expire_time_seconds) by (host) - time()) < 604800
+#              for: 1s
+#              labels:
+#                severity: critical
+#              annotations:
+#                description: ssl certificate(s) will expire in less then a week
+#                summary: renew expiring certificates to avoid downtime
+#            - alert: NGINXTooMany500s
+#              expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+#              for: 1m
+#              labels:
+#                severity: warning
+#              annotations:
+#                description: Too many 5XXs
+#                summary: More than 5% of all requests returned 5XX, this requires your attention
+#            - alert: NGINXTooMany400s
+#              expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"4.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+#              for: 1m
+#              labels:
+#                severity: warning
+#              annotations:
+#                description: Too many 4XXs
+#                summary: More than 5% of all requests returned 4XX, this requires your attention
