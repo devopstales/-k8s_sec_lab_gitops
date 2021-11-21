@@ -8,7 +8,6 @@ spec:
     provider: sops
     secretRef:
       name: sops-gpg
-      namespace: flux-system
   interval: 10m0s
   path: ./source/01_flux-sops
   prune: true
