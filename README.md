@@ -1,1 +1,1 @@
-# -k8s_sec_lab_gitops
+# k8s_sec_lab_gitops
